@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
 	char *haddrp;
 	unsigned short client_port;
 	FILE* pLog;
-	char strHolder[200];
+	char strHolder[MAXLINE];
 	rio_t rio;
 	rio_t srio;
 
@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 	
 	
 		Rio_readinitb(&rio,connfd);	
-		Rio_readlineb(&rio,strHolder ,200);		
+		Rio_readlineb(&rio,strHolder ,MAXLINE);		
 		
 		char* hold = strtok(strHolder," ");
 		//printf("the total is %s",strHolder);
@@ -54,10 +54,16 @@ int main(int argc, char* argv[])
 		int clientfd = Open_clientfd("www.ics.uci.edu","80");	
 		Rio_readinitb(&srio,clientfd);
 		//printf("about to send: %s\n",strHolder);
-		Rio_writen(clientfd, "GET www.ics.uci.edu HTTP/1.1",200);
-		Rio_readlineb(&srio, strHolder, 80);
-		if(strlen(strHolder) != 0 &&  strHolder != NULL)
+		printf("writing\n");
+		Rio_writen(clientfd,"GET /~harris/test.html HTTP/1.1\r\nhost: www.ics.uci.edu\r\n\r\n",200);	
+		printf("reading\n");
+
+		Rio_readlineb(&srio, strHolder,200);
+		Rio_readnb(&srio,strHolder,MAXLINE);
+		printf("after read\n");
+		if(strHolder != NULL && strlen(strHolder) != 0)
 		{
+			printf("string is not null\n");
 			printf("from server %s",strHolder);
 		}
 		printf("it finished\n");
