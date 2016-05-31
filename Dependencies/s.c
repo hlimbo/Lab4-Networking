@@ -1,104 +1,307 @@
+#define DIRSIZE 400
+#define HOSTSIZE 400
+
 #include "csapp.h"
 
-int main(int argc, char* argv[])
+struct httprequest
 {
-	//1. establish a connection (server)
-	int listenfd, connfd, clientlen;
-	char  *port;
-	struct sockaddr_in clientaddr;
-	struct hostent *hp;
-	char *haddrp;
-	unsigned short client_port;
-	FILE* pLog;
-	char strHolder[MAXLINE];
-	char headerCopy[MAXLINE];
-	rio_t rio;
-	rio_t srio;
-	ssize_t readBytes;
+	char method[30]; //should be GET
+	char httpType[50];
+	char httpVersion[50];
+	char directory[DIRSIZE];
+	char hostname[HOSTSIZE];
+	char port[20];
+};
 
-	if (argc != 2)
+int checkArgs(int argc)
+{
+	if(argc != 2)
 	{
-		fprintf(stderr, "Invalid arguments %s\n", argv[0]);
-		exit(0);
+		fprintf(stderr,"Invalid arguments\n");
+		return - 1;
 	}
-
-	port = argv[1];
-	listenfd = Open_listenfd(port);
-
-	while (1)
-	{
-		clientlen = sizeof(clientaddr);
-		connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-		hp = Gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr, sizeof(clientaddr.sin_addr.s_addr), AF_INET);
-		haddrp = inet_ntoa(clientaddr.sin_addr);
-		client_port = ntohs(clientaddr.sin_port);
-		
-		
-		printf("server connected:  %s (%s), port %u\n", hp->h_name, haddrp, client_port);
-		//Host information.
-		printf("Host official name: %s\n", hp->h_name);
-		printf("Host alias: %s\n", hp->h_aliases[0]);
-		printf("Host addr_type: %d\n", hp->h_addrtype);//AF_INET = 2
-		printf("Host Length: %d\n", hp->h_length);
 	
-	
-		Rio_readinitb(&rio,connfd);	
-		Rio_readlineb(&rio,strHolder ,MAXLINE);		
-		
-		char* hold = strtok(strHolder," ");
-		//printf("the total is %s",strHolder);
-//		printf("the test is: %s \n",hold=strtok(NULL," "));
-		
-
-		int clientfd = Open_clientfd("www.ics.uci.edu","80");	
-		Rio_readinitb(&srio,clientfd);
-		//printf("about to send: %s\n",strHolder);
-//		printf("writing\n");
-		
-//		Rio_writen(clientfd,"HEAD /~harris/test.html  HTTP/1.1\r\n",MAXLINE);
-	//	Rio_readlineb(&srio,strHolder,MAXLINE);
-	//	printf("%s",strHolder);
-		//if HTTP 1.1 bad request 400
-		//if HTTP 1.0 its ok.
-		//
-		//use HTTP METHODS described in tutorialspoint.
-		//proxy should parse command to obtain
-		////1. hostname.
-		////2. directory.
-//		Rio_writen(clientfd,"HEAD /~harris/test.html  HTTP/1.0\r\nhost: www.ics.uc.edu\r\n\r\n",200);
-		Rio_writen(clientfd,"GET /~harris/test.html HTTP/1.0\r\nhost: www.ics.uci.edu\r\n\r\n",200);
-		
-		hp = Gethostbyname("www.google.com");
-		printf("website official name: %s\n", hp->h_name);
-		printf("header length: %d\n",hp->h_length);
-		struct in_addr* internetAddress = (struct in_addr*)(hp->h_addr_list[0]);
-		haddrp = inet_ntoa(*internetAddress);
-		printf("website IP: %s\n",haddrp);
-		printf("before read\n");
-	//	Rio_readlineb(&srio, strHolder,200);
-		Rio_readnb(&srio,strHolder,MAXLINE);
-		
-		memcpy(headerCopy,strHolder,MAXLINE);
-		char* snippet = strstr(headerCopy,"Date:");
-		char* sizeInBytes = strtok(snippet,"\n");
-		printf("%s\n",sizeInBytes);
-		snippet = strstr(headerCopy,"Content-Length:");
-		sizeInBytes = strtok(snippet,"\n");
-	 	printf("%s\n",snippet);
-		printf("after read\n\n\n");
-		
-		printf("%s",strHolder);
-		printf("it finished\n");
-		pLog  = fopen("proxy.log", "a+");
-		fprintf(pLog, " %s %s\n ",haddrp,hp->h_name);
-		
-		
-		
-		fclose(pLog);
-		Close(connfd);
-	}
-
-
 	return 0;
+}
+int parser(char* string, struct httprequest* req);
 
+//use: 
+//type ./PROXY [PORT NUMBER]
+int main(int argc,char** argv)
+{
+	//insufficient args leave program.
+	if(checkArgs(argc) == -1)
+	{
+		return 0;
+	}
+
+	//proxy server 
+	int listenfd;
+	char* listen_port;
+	
+	//proxy connection to web browser or telnet info
+	int connfd;
+	int connlen;
+	struct sockaddr_in connaddr;
+	struct hostent* conn_hp;
+	char* conn_addrp;
+	unsigned short conn_port;
+	rio_t conn_rio;
+	
+	//client (web browser or telnet) 
+	int clientfd;
+	struct hostent* client_hp;
+	struct httprequest client_info;
+	struct in_addr* client_in_addr;
+	char* client_ipAddress;
+	ssize_t bytesRead;
+	rio_t client_rio;
+
+	//http header
+	char header[MAXLINE];
+	//http request read from stream
+	char request[MAXLINE];	
+	//logging
+	FILE* pLog;
+
+	//http versions
+	char* httpver1 = "HTTP/1.0";
+	char* httpver2 = "HTTP/1.1";
+			
+	listen_port = argv[1];
+	listenfd = Open_listenfd(listen_port);
+	
+	while(1)
+	{
+	//	puts("Welcome to Proxy Server");
+	//	puts("Press q to quit or press any other key to continue.");	
+	//	char key = getchar();
+	//	if(key == 'q')
+	//		break;
+		
+		//establishes a connection between client and proxy
+		connlen = sizeof(connaddr);
+		connfd = Accept(listenfd,(SA *)&connaddr, &connlen);
+		conn_hp = Gethostbyaddr((const char*)&connaddr.sin_addr.s_addr, sizeof(connaddr.sin_addr.s_addr), AF_INET);
+		conn_addrp = inet_ntoa(connaddr.sin_addr);
+		conn_port = ntohs(connaddr.sin_port);
+		
+		printf("%s (%s:%u) connected to the proxy\n",conn_hp->h_name,conn_addrp,conn_port);
+		
+		//initializes and reads request from browser client
+		Rio_readinitb(&conn_rio,connfd);
+		Rio_readlineb(&conn_rio,request,MAXLINE);
+		
+		printf("Request read as: %s\n",request);
+		//format request read. example: www.code.tutsplus.com/tutorials/http-headers-for-dummies--net-8039
+        parser(request,&client_info);
+		
+		printf("\n\nCLIENT INFO DATA:\n\tmethod:%s\n\thttpType:%s\n\thttpversion:%s\n\tdirectory:%s\n\thostname:%s\n\tport:%s\n\n",
+		                   client_info.method,client_info.httpType,client_info.httpVersion,
+                           client_info.directory,client_info.hostname,client_info.port);
+		char formattedRequest[MAXLINE];
+		sprintf(formattedRequest,"%s %s %s\r\nHost: %s\r\n\r\n",client_info.method,client_info.directory,client_info.httpVersion,client_info.hostname);		
+		printf("%s\n",formattedRequest);
+		if(client_info.hostname[strlen(client_info.hostname) - 1] == '\n')
+		{
+			printf("Host name has a new line removing it\n");
+			client_info.hostname[strlen(client_info.hostname) - 1] = '\0';
+			printf("removal: %s\n",client_info.hostname);
+		}
+		//open webpage from proxy, initialize, and write a HTTP request to it.
+		char* http_port = "80";
+		char* https_port = "443";
+		//clientfd = Open_clientfd(client_info.hostname,client_info.port);
+		clientfd = Open_clientfd(client_info.hostname,http_port);
+		if (clientfd < 0 )
+		{
+			clientfd = Open_clientfd(client_info.hostname,https_port);
+		}
+		Rio_readinitb(&client_rio,clientfd);
+		Rio_writen(clientfd,formattedRequest,MAXLINE);
+		
+		client_hp = Gethostbyname(client_info.hostname);
+		client_in_addr = (struct in_addr*)(client_hp->h_addr_list[0]);
+		client_ipAddress = inet_ntoa(*client_in_addr);
+		
+	//	bytesRead = Rio_readnb(&client_rio,header,MAXLINE);
+		bytesRead = recv(client_rio.rio_fd,header,MAXLINE,0);	
+		//obtaining the date from the header.
+		char headerCopy[MAXLINE];
+		memcpy(headerCopy,header,MAXLINE);
+		char* snippet;
+		char date[300];
+		snippet = strstr(headerCopy,"Date:");
+		if(snippet == NULL)
+		{
+			snippet = strstr(headerCopy,"date:");
+			if(snippet == NULL)
+			{
+				printf("Could not find the date in the html header\n");
+				strncpy(date,"Date not found",20);		
+			}
+			else
+			{
+				snippet = strtok(snippet,"\r\n");
+				if(snippet == NULL)
+				{
+					printf("strtok could not find the r or n\n");
+					strncpy(date, "Date not found",20);
+				}
+				else
+				{
+					strncpy(date,snippet,strlen(snippet));
+				}
+			}
+		}
+		else
+		{
+			snippet = strtok(snippet,"\r\n");
+			if(snippet == NULL)
+			{
+				printf("strtok could not find the r or n\n");
+				strncpy(date,"Date not found",20);
+			}
+			else
+			{
+				strncpy(date,snippet,strlen(snippet));
+			}
+		}
+				
+		printf("%s\n",header);
+		pLog = fopen("proxy.log","a+");
+	//	fprintf(pLog,"%s %d\n",client_hp->h_name,bytesRead);
+		fprintf(pLog,"%s : %s %s %d\n",date,client_ipAddress,client_hp->h_name,bytesRead);
+	//	
+		Rio_writen(connfd,header,MAXLINE);
+
+	//	fflush(stdout);	
+		fclose(pLog);
+		Close(clientfd);
+		Close(connfd);							
+		
+	}
+
+	
+	Close(listenfd);
+	return 0;
+}
+
+int parser(char* string, struct httprequest* req)
+{
+     char holder[MAXLINE];
+     strncpy(holder,string,MAXLINE);
+     int i;
+     int spaces = 0;
+     int j = 0;
+     (*req).directory[0] = '/';
+     printf("initial: \n\t%s",string);
+     for(i = 0; string[i] != '\0' && string[i] != '\n'; ++i)
+     {
+           printf("current letter: %c\tspaces:%d\n",string[i],spaces);
+           if(string[i] == ' ')
+           {
+              spaces = 1;
+              i++;        
+              j=0;     
+           }
+           
+           if (spaces == 0)
+           {
+              req->method[j] = string[i];
+              ++j;
+           }
+           else if(spaces == 1)
+           {
+               int k =0;
+               if(string[i+k] == 'h')
+               {  holder[i] = string[i+k];++k;
+                   if(string[i+k] == 't')
+                   {holder[i] = string[i+k];++k;
+                       if(string[i+k] == 't')
+                       {holder[i] = string[i+k];++k;
+                          if(string[i+k] == 'p')
+                           {holder[i] = string[i+k];++k;
+                               if(string[i+k] == 's')
+                               {holder[i] = string[i+k];++k;
+                                  if(string[i+k] == ':')
+                                   {holder[i] = string[i+k];++k;
+                                       if(string[i+k] == '/')
+                                       {holder[i] = string[i+k];++k;
+                                          if(string[i+k] == '/')
+                                           {
+                                               strncpy((*req).httpType,holder,k);
+                                               printf("copying: %s\n",holder);
+                                               i += k;
+                                           }   
+                                       }  
+                                   }   
+                               }  
+                           }   
+                       }  
+                   }  
+               }
+               else if(string[i] == 'h')
+               { k=0;holder[i] = string[i+k];++k;
+                   if(string[i+k] == 't')
+                   {holder[i] = string[i+k];++k;
+                       if(string[i+k] == 't')
+                       {holder[i] = string[i+k];++k;
+                          if(string[i+k] == 'p')
+                           {holder[i] = string[i+k];++k;
+                               if(string[i+k] == ':')
+                               {holder[i] = string[i+k];++k;
+                                  if(string[i+k] == '/')
+                                   {holder[i] = string[i+k];++k;
+                                       if(string[i+k] == '/')
+                                       {
+                                          strncpy((*req).httpType,holder,k); 
+                                          printf("copying: %s\n",holder); 
+                                          i += k;
+                                       }  
+                                   }   
+                               }  
+                           }   
+                       }  
+                   }  
+               }
+               int l = 0;
+               while(string[i] != '\0' && string[i] != ' ' && string[i] != ':')
+               {
+                 (*req).hostname[l] = string[i];
+                 printf("current letter: %c\tspaces: %d\n",string[i+k],spaces);
+                 ++l;++i;
+               }
+              
+               if(string[i+k] == ':')
+               {
+
+                   l=0;
+                   while(string[i] != '\0' && string[i] != ' ')
+                   {
+                       (*req).port[l] = string[i];
+                       printf("current letter: %c\tspaces: %d\n",string[i+k],spaces);
+                       ++l;++i;
+                   } 
+               }     
+               if(string[i] == '\0')
+               {
+                   return -1;                  
+               }
+               j = 0;
+               ++spaces;
+           }
+           else if(spaces == 2)
+           {
+                if (string[i] != '\0' && string[i] != '\n' && string[i] != '\0')
+                {
+                     (*req).httpVersion[j] = string[i];  
+                     
+                     printf("current letter: %c\tspaces: %d\n",string[i],spaces);   
+                     ++j;          
+                }
+                
+           }      
+     }
+     return 1;
 }
