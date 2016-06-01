@@ -194,10 +194,8 @@ int parser(char* string, struct httprequest* req)
      int spaces = 0;
      int j = 0;
      (*req).directory[0] = '/';
-     printf("initial: \n\t%s",string);
      for(i = 0; string[i] != '\0' && string[i] != '\n'; ++i)
      {
-           printf("current letter: %c\tspaces:%d\n",string[i],spaces);
            if(string[i] == ' ')
            {
               spaces = 1;
@@ -213,7 +211,6 @@ int parser(char* string, struct httprequest* req)
            else if(spaces == 1)
            {
                int k =0;
-               printf("testing for https\n");
                if(string[i+k] == 'h')
                {  holder[k] = string[i+k];++k;
                    if(string[i+k] == 't')
@@ -231,9 +228,7 @@ int parser(char* string, struct httprequest* req)
                                           if(string[i+k] == '/')
                                           {holder[k] = string[i+k];++k;
                                                strncpy((*req).httpType,holder,k);
-                                               printf("copying: %s\n",(*req).httpType);
                                                i += k;
-                                               printf("starting at: %c\n",string[i]);
                                            }   
                                        } 
                                    } 
@@ -245,9 +240,7 @@ int parser(char* string, struct httprequest* req)
                                        if(string[i+k] == '/')
                                        {holder[k] = string[i+k];++k;
                                           strncpy((*req).httpType,holder,k); 
-                                          printf("copying: %s\n",(*req).httpType); 
                                           i += k;
-                                          printf("starting at: %c\n",string[i]);
                                        }  
                                    }   
                                }  
@@ -255,15 +248,12 @@ int parser(char* string, struct httprequest* req)
                        }  
                    }  
                }
-               printf("before copying 2.0: %s\n",(*req).hostname);
                int l = 0;
                while(string[i] != '\0' && string[i] != ' ' && string[i] != ':' && string[i] != '/')
                {
                  (*req).hostname[l] = string[i];
-                 printf("current letter2: %c\tspaces: %d\n",string[i],spaces);
                  ++l;++i;
                }
-                printf("copying 2.0: %s\n",(*req).hostname);
                if(string[i] == ':')
                {
                    l=0;
@@ -271,7 +261,6 @@ int parser(char* string, struct httprequest* req)
                    while(string[i] != '\0' && string[i] != ' ')
                    {
                        (*req).port[l] = string[i];
-                       printf("current letter3: %c\tspaces: %d\n",string[i],spaces);
                        ++l;++i;
                    } 
                }  
@@ -281,7 +270,6 @@ int parser(char* string, struct httprequest* req)
                    while(string[i] != '\0' && string[i] != ' ')
                    {
                        (*req).directory[l] = string[i];
-                       printf("current letter 3.5: %c\tspaces: %d\n",string[i],spaces);
                        ++l;++i;
                    } 
                }   
@@ -291,15 +279,12 @@ int parser(char* string, struct httprequest* req)
                }
                j = 0;
                ++spaces;
-               printf("now adding to spaces %d:\n",spaces);
            }
            else if(spaces == 2)
            {
                 if (string[i] != '\0' && string[i] != '\n' && string[i] != '\0')
                 {
-                     (*req).httpVersion[j] = string[i];  
-                     
-                     printf("current letter4: %c\tspaces: %d\n",string[i],spaces);   
+                     (*req).httpVersion[j] = string[i];   
                      ++j;          
                 }
                 
