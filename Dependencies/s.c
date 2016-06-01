@@ -190,7 +190,6 @@ int main(int argc,char** argv)
 int parser(char* string, struct httprequest* req)
 {
      char holder[MAXLINE];
-     strncpy(holder,string,MAXLINE);
      int i;
      int spaces = 0;
      int j = 0;
@@ -214,50 +213,41 @@ int parser(char* string, struct httprequest* req)
            else if(spaces == 1)
            {
                int k =0;
+               printf("testing for https\n");
                if(string[i+k] == 'h')
-               {  holder[i] = string[i+k];++k;
+               {  holder[k] = string[i+k];++k;
                    if(string[i+k] == 't')
-                   {holder[i] = string[i+k];++k;
+                   {holder[k] = string[i+k];++k;
                        if(string[i+k] == 't')
-                       {holder[i] = string[i+k];++k;
+                       {holder[k] = string[i+k];++k;
                           if(string[i+k] == 'p')
-                           {holder[i] = string[i+k];++k;
-                               if(string[i+k] == 's')
-                               {holder[i] = string[i+k];++k;
+                          {holder[k] = string[i+k];++k;
+                             if(string[i+k] == 's')
+                             {holder[k] = string[i+k];++k;
                                   if(string[i+k] == ':')
-                                   {holder[i] = string[i+k];++k;
+                                  {holder[k] = string[i+k];++k;
                                        if(string[i+k] == '/')
-                                       {holder[i] = string[i+k];++k;
+                                       {holder[k] = string[i+k];++k;
                                           if(string[i+k] == '/')
-                                           {
+                                          {holder[k] = string[i+k];++k;
                                                strncpy((*req).httpType,holder,k);
-                                               printf("copying: %s\n",holder);
+                                               printf("copying: %s\n",(*req).httpType);
                                                i += k;
+                                               printf("starting at: %c\n",string[i]);
                                            }   
-                                       }  
-                                   }   
-                               }  
-                           }   
-                       }  
-                   }  
-               }
-               else if(string[i] == 'h')
-               { k=0;holder[i] = string[i+k];++k;
-                   if(string[i+k] == 't')
-                   {holder[i] = string[i+k];++k;
-                       if(string[i+k] == 't')
-                       {holder[i] = string[i+k];++k;
-                          if(string[i+k] == 'p')
-                           {holder[i] = string[i+k];++k;
-                               if(string[i+k] == ':')
-                               {holder[i] = string[i+k];++k;
+                                       } 
+                                   } 
+                               } 
+                               else if(string[i+k] == ':')
+                               {holder[k] = string[i+k];++k;
                                   if(string[i+k] == '/')
-                                   {holder[i] = string[i+k];++k;
+                                   {holder[k] = string[i+k];++k;
                                        if(string[i+k] == '/')
-                                       {
+                                       {holder[k] = string[i+k];++k;
                                           strncpy((*req).httpType,holder,k); 
-                                          printf("copying: %s\n",holder); 
+                                          printf("copying: %s\n",(*req).httpType); 
                                           i += k;
+                                          printf("starting at: %c\n",string[i]);
                                        }  
                                    }   
                                }  
@@ -265,31 +255,43 @@ int parser(char* string, struct httprequest* req)
                        }  
                    }  
                }
+               printf("before copying 2.0: %s\n",(*req).hostname);
                int l = 0;
-               while(string[i] != '\0' && string[i] != ' ' && string[i] != ':')
+               while(string[i] != '\0' && string[i] != ' ' && string[i] != ':' && string[i] != '/')
                {
                  (*req).hostname[l] = string[i];
-                 printf("current letter: %c\tspaces: %d\n",string[i+k],spaces);
+                 printf("current letter2: %c\tspaces: %d\n",string[i],spaces);
                  ++l;++i;
                }
-              
-               if(string[i+k] == ':')
+                printf("copying 2.0: %s\n",(*req).hostname);
+               if(string[i] == ':')
                {
-
                    l=0;
+                   ++i;
                    while(string[i] != '\0' && string[i] != ' ')
                    {
                        (*req).port[l] = string[i];
-                       printf("current letter: %c\tspaces: %d\n",string[i+k],spaces);
+                       printf("current letter3: %c\tspaces: %d\n",string[i],spaces);
                        ++l;++i;
                    } 
-               }     
+               }  
+               if(string[i] == '/')
+               {
+                   l=0;
+                   while(string[i] != '\0' && string[i] != ' ')
+                   {
+                       (*req).directory[l] = string[i];
+                       printf("current letter 3.5: %c\tspaces: %d\n",string[i],spaces);
+                       ++l;++i;
+                   } 
+               }   
                if(string[i] == '\0')
                {
                    return -1;                  
                }
                j = 0;
                ++spaces;
+               printf("now adding to spaces %d:\n",spaces);
            }
            else if(spaces == 2)
            {
@@ -297,7 +299,7 @@ int parser(char* string, struct httprequest* req)
                 {
                      (*req).httpVersion[j] = string[i];  
                      
-                     printf("current letter: %c\tspaces: %d\n",string[i],spaces);   
+                     printf("current letter4: %c\tspaces: %d\n",string[i],spaces);   
                      ++j;          
                 }
                 
