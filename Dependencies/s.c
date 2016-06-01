@@ -24,6 +24,8 @@ int checkArgs(int argc)
 	return 0;
 }
 int parser(char* string, struct httprequest* req);
+void printRequest(struct httprequest* request);
+void formatRequest(struct httprequest* request,char* requestFormat);
 
 //use: 
 //type ./PROXY [PORT NUMBER]
@@ -100,8 +102,9 @@ int main(int argc,char** argv)
 		                   client_info.method,client_info.httpType,client_info.httpVersion,
                            client_info.directory,client_info.hostname,client_info.port);
 		char formattedRequest[MAXLINE];
-		sprintf(formattedRequest,"%s %s %s\r\nHost: %s\r\n\r\n",client_info.method,client_info.directory,client_info.httpVersion,client_info.hostname);		
-		printf("%s\n",formattedRequest);
+		//sprintf(formattedRequest,"%s %s %s\r\nHost: %s\r\n\r\n",client_info.method,client_info.directory,client_info.httpVersion,client_info.hostname);		
+		formatRequest(&client_info,formattedRequest);
+        printf("%s\n",formattedRequest);
 		if(client_info.hostname[strlen(client_info.hostname) - 1] == '\n')
 		{
 			printf("Host name has a new line removing it\n");
@@ -291,4 +294,50 @@ int parser(char* string, struct httprequest* req)
            }      
      }
      return 1;
+}
+
+void printRequest(struct httprequest* request)
+{
+	printf("method: %s\n",request->method);
+	printf("httpver: %s\n",request->httpVersion);
+	printf("protocol: %s\n",request->httpType);
+	printf("hostname: %s\n",request->hostname);
+	printf("port: %s\n",request->port);
+	printf("directory: %s\n",request->directory);
+}
+
+void formatRequest(struct httprequest* request,char* requestFormat)
+{
+	if(strcmp(request->method,"GET") == 0)
+	{
+		sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	}
+	else if(strcmp(request->method,"HEAD") == 0)
+	{
+		sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	}
+	//else if(strcmp(request->method,"POST") == 0)//funky
+	//{
+	//	sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	//}
+	//else if(strcmp(request->method,"PUT") == 0)//funky
+	//{
+	//	sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	//}
+	//else if(strcmp(request->method,"DELETE") == 0)//funky
+	//{
+	//	sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	//}
+	else if(strcmp(request->method,"CONNECT") == 0)
+	{
+		sprintf(requestFormat,"%s %s %s\r\n",request->method,request->hostname,request->httpVersion);
+	}
+	else if(strcmp(request->method,"OPTIONS") == 0)//change hostname to "*" to refer to entire server.
+	{
+		sprintf(requestFormat,"%s %s %s\r\n",request->method,request->hostname,request->httpVersion);
+	}
+	else if(strcmp(request->method,"TRACE") == 0)//debugging
+	{
+		sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
+	}
 }
