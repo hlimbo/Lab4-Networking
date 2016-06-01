@@ -26,6 +26,7 @@ int checkArgs(int argc)
 int parser(char* string, struct httprequest* req);
 void printRequest(struct httprequest* request);
 void formatRequest(struct httprequest* request,char* requestFormat);
+void clear(struct httprequest* req);
 
 //use: 
 //type ./PROXY [PORT NUMBER]
@@ -73,8 +74,11 @@ int main(int argc,char** argv)
 	listen_port = argv[1];
 	listenfd = Open_listenfd(listen_port);
 	
+	
 	while(1)
 	{
+        clear(&client_info);
+        printRequest(&client_info);
 	//	puts("Welcome to Proxy Server");
 	//	puts("Press q to quit or press any other key to continue.");	
 	//	char key = getchar();
@@ -340,4 +344,14 @@ void formatRequest(struct httprequest* request,char* requestFormat)
 	{
 		sprintf(requestFormat,"%s %s %s\r\nHost: %s\r\n\r\n",request->method,request->directory,request->httpVersion,request->hostname);
 	}
+}
+
+void clear(struct httprequest* req)
+{
+    memset(req->method,'\0',sizeof(req->method));
+    memset(req->httpType,'\0',sizeof(req->httpType));
+    memset(req->httpVersion,'\0',sizeof(req->httpVersion));
+    memset(req->directory,'\0',sizeof(req->directory));
+    memset(req->hostname,'\0',sizeof(req->hostname));
+    memset(req->port,'\0',sizeof(req->port));
 }
